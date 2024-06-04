@@ -7,8 +7,25 @@ def get_related_posts_count(tag):
     return tag.order_by('-num_posts')[:5]
 
 
-def get_likes_count(post):
-    return post.order_by('-num_likes')[:5]
+def get_most_popular_posts(Post):
+    most_popular_posts = Post.objects.annotate(likes_count=Count('likes')).order_by('-likes_count').prefetch_related(
+        'author')[:5]
+    most_popular_posts_ids = [post.id for post in most_popular_posts]
+    posts_with_comments = Post.objects.filter(id__in=most_popular_posts_ids).annotate(comments_count=Count('comments'))
+    ids_and_comments = posts_with_comments.values_list('id', 'comments_count')
+    count_for_id = dict(ids_and_comments)
+    for post in most_popular_posts:
+        post.comments_count = count_for_id[post.id]
+    return most_popular_posts
+
+
+def get_most_fresh_posts(Post):
+    most_fresh_posts = Post.objects.annotate(comments_count=Count('comments')).order_by('-published_at').prefetch_related('author')[:5]
+    ids_and_comments = most_fresh_posts.values_list('id', 'comments_count')
+    count_for_comments = dict(ids_and_comments)
+    for post in most_fresh_posts:
+        post.comments_count = count_for_comments[post.id]
+    return most_fresh_posts
 
 
 def serialize_post(post):
@@ -30,7 +47,7 @@ def serialize_post_optimize(post):
         'title': post.title,
         'teaser_text': post.text[:200],
         'author': post.author.username,
-        'comments_amount': post.num_comments,
+        'comments_amount': post.comments_count,
         'image_url': post.image.url if post.image else None,
         'published_at': post.published_at,
         'slug': post.slug,
@@ -47,12 +64,8 @@ def serialize_tag(tag):
 
 
 def index(request):
-    most_popular_posts = get_likes_count(Post.objects.annotate(num_likes=Count('likes', distinct=True),
-        num_comments=Count('comments', distinct=True)).prefetch_related('author'))
-
-    most_fresh_posts = Post.objects.annotate(num_comments=Count('comments', distinct=True)).order_by(
-        '-published_at').prefetch_related('author')[:5]
-
+    most_popular_posts = get_most_popular_posts(Post)
+    most_fresh_posts = get_most_fresh_posts(Post)
     most_popular_tags = get_related_posts_count(Tag.objects.annotate(num_posts=Count('posts')))
 
     context = {
