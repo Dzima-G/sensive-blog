@@ -12,7 +12,11 @@ class PostQuerySet(models.QuerySet):
 
     def popular(self):
         most_popular_posts = Post.objects.annotate(likes_count=Count('likes')).order_by(
-            '-likes_count').prefetch_related('author')
+            '-likes_count')
+        return most_popular_posts
+
+    def fetch_with_comments_count(self):
+        most_popular_posts = self
         most_popular_posts_ids = [post.id for post in most_popular_posts]
         posts_with_comments = Post.objects.filter(id__in=most_popular_posts_ids).annotate(
             comments_count=Count('comments'))
@@ -25,11 +29,7 @@ class PostQuerySet(models.QuerySet):
 
     def fresh(self):
         most_fresh_posts = Post.objects.annotate(comments_count=Count('comments')).order_by(
-            '-published_at').prefetch_related('author')
-        ids_and_comments = most_fresh_posts.values_list('id', 'comments_count')
-        count_for_comments = dict(ids_and_comments)
-        for post in most_fresh_posts:
-            post.comments_count = count_for_comments[post.id]
+            '-published_at')
         return most_fresh_posts
 
 
