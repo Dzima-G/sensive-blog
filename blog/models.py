@@ -11,36 +11,33 @@ class PostQuerySet(models.QuerySet):
 
 
     def popular(self):
-        most_popular_posts = Post.objects.annotate(likes_count=Count('likes')).order_by(
+        most_popular_posts = self.annotate(likes_count=Count('likes')).order_by(
             '-likes_count')
-        return most_popular_posts
-
-    def fetch_with_comments_count(self):
-        most_popular_posts = self
-        most_popular_posts_ids = [post.id for post in most_popular_posts]
-        posts_with_comments = Post.objects.filter(id__in=most_popular_posts_ids).annotate(
-            comments_count=Count('comments'))
-        ids_and_comments = posts_with_comments.values_list('id', 'comments_count')
-        count_for_id = dict(ids_and_comments)
-        for post in most_popular_posts:
-            post.comments_count = count_for_id[post.id]
         return most_popular_posts
 
 
     def fresh(self):
-        most_fresh_posts = Post.objects.annotate(comments_count=Count('comments')).order_by(
+        most_fresh_posts = self.annotate(comments_count=Count('comments')).order_by(
             '-published_at')
         return most_fresh_posts
+
+    def comments(self):
+        ids = [post.id for post in self]
+        posts_with_comments = Post.objects.filter(id__in=ids).annotate(comments_count=Count('comments'))
+        return posts_with_comments
 
 
 class TagQuerySet(models.QuerySet):
     def popular(self):
-        most_popular_tags = Tag.objects.annotate(num_posts=Count('posts')).order_by('-num_posts')
-        ids_and_posts = most_popular_tags.values_list('id', 'num_posts')
-        count_for_posts = dict(ids_and_posts)
-        for tag in most_popular_tags:
-            tag.num_posts = count_for_posts[tag.id]
+        most_popular_tags = self.annotate(num_posts=Count('posts')).order_by('-num_posts')
         return most_popular_tags
+
+    def fetch_with_posts(self):
+        ids_and_posts = self.values_list('id', 'num_posts')
+        count_for_posts = dict(ids_and_posts)
+        for tag in self:
+            tag.num_posts = count_for_posts[tag.id]
+        return self
 
 
 class Post(models.Model):
