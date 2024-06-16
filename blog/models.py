@@ -5,16 +5,11 @@ from django.db.models import Count, Prefetch
 
 
 class PostQuerySet(models.QuerySet):
-    def year(self, year):
-        posts_at_year = self.filter(published_at__year=year).order_by('published_at')
-        return posts_at_year
-
 
     def popular(self):
         most_popular_posts = self.annotate(likes_count=Count('likes')).order_by(
             '-likes_count')
         return most_popular_posts
-
 
     def fresh(self):
         most_fresh_posts = self.annotate(comments_count=Count('comments')).order_by(
@@ -33,13 +28,6 @@ class TagQuerySet(models.QuerySet):
     def popular(self):
         most_popular_tags = self.annotate(num_posts=Count('posts')).order_by('-num_posts')
         return most_popular_tags
-
-    def fetch_with_posts(self):
-        ids_and_posts = self.values_list('id', 'num_posts')
-        count_for_posts = dict(ids_and_posts)
-        for tag in self:
-            tag.num_posts = count_for_posts[tag.id]
-        return self
 
 
 class Post(models.Model):
@@ -97,7 +85,6 @@ class Tag(models.Model):
         verbose_name_plural = 'теги'
 
 
-
 class Comment(models.Model):
     post = models.ForeignKey(
         'Post',
@@ -119,4 +106,3 @@ class Comment(models.Model):
         ordering = ['published_at']
         verbose_name = 'комментарий'
         verbose_name_plural = 'комментарии'
-
